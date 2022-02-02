@@ -1,6 +1,8 @@
 import os
 import logging
 
+from datetime import datetime
+
 from airflow import DAG
 from airflow.utils.dates import days_ago
 from airflow.operators.bash import BashOperator
@@ -14,8 +16,9 @@ import pyarrow.parquet as pq
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 BUCKET = os.environ.get("GCP_GCS_BUCKET")
 
-dataset_file = "yellow_tripdata_2021-01.csv"
+dataset_file = "yellow_tripdata_{{ execution_date.strftime(\'%Y-%m\') }}.csv"
 dataset_url = f"https://s3.amazonaws.com/nyc-tlc/trip+data/{dataset_file}"
+table_name = "yellow_tripdata_{{ execution_date.strftime(\'%Y-%m\') }}"
 path_to_local_home = os.environ.get("AIRFLOW_HOME", "/opt/airflow/")
 parquet_file = dataset_file.replace('.csv', '.parquet')
 BIGQUERY_DATASET = os.environ.get("BIGQUERY_DATASET", 'trips_data_all')
@@ -53,7 +56,9 @@ def upload_to_gcs(bucket, object_name, local_file):
 
 default_args = {
     "owner": "airflow",
-    "start_date": days_ago(1),
+    # "start_date": days_ago(1),
+    "start_date": datetime(2019, 1, 1),
+    "end_date": datetime(2021, 2, 28),
     "depends_on_past": False,
     "retries": 1,
 }
@@ -61,16 +66,16 @@ default_args = {
 # NOTE: DAG declaration - using a Context Manager (an implicit way)
 with DAG(
     dag_id="data_ingestion_gcs_dag",
-    schedule_interval="@daily",
+    schedule_interval="@monthly",
     default_args=default_args,
-    catchup=False,
-    max_active_runs=1,
+    catchup=True,
+    max_active_runs=2,
     tags=['dtc-de'],
 ) as dag:
 
     download_dataset_task = BashOperator(
         task_id="download_dataset_task",
-        bash_command=f"curl -sS {dataset_url} > {path_to_local_home}/{dataset_file}"
+        bash_command=f"curl -sSLf {dataset_url} > {path_to_local_home}/{dataset_file}"
     )
 
     format_to_parquet_task = PythonOperator(
@@ -81,7 +86,6 @@ with DAG(
         },
     )
 
-    # TODO: Homework - research and try XCOM to communicate output values between 2 tasks/operators
     local_to_gcs_task = PythonOperator(
         task_id="local_to_gcs_task",
         python_callable=upload_to_gcs,
@@ -98,7 +102,7 @@ with DAG(
             "tableReference": {
                 "projectId": PROJECT_ID,
                 "datasetId": BIGQUERY_DATASET,
-                "tableId": "external_table",
+                "tableId": table_name,
             },
             "externalDataConfiguration": {
                 "sourceFormat": "PARQUET",
