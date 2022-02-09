@@ -16,11 +16,9 @@ import pyarrow.parquet as pq
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 BUCKET = os.environ.get("GCP_GCS_BUCKET")
 
-
-# for yellow taxi data, just substitute green with yellow and viceversa
-dataset_file = "green_tripdata_{{ execution_date.strftime(\'%Y-%m\') }}.csv"
-dataset_url = f"https://s3.amazonaws.com/nyc-tlc/trip+data/{dataset_file}"
-table_name = "green_tripdata_{{ execution_date.strftime(\'%Y-%m\') }}"
+dataset_file = "fhv_tripdata_{{ execution_date.strftime(\'%Y-%m\') }}.csv"
+dataset_url = f"https://nyc-tlc.s3.amazonaws.com/trip+data/{dataset_file}"
+table_name = "fhv_tripdata_{{ execution_date.strftime(\'%Y-%m\') }}"
 path_to_local_home = os.environ.get("AIRFLOW_HOME", "/opt/airflow/")
 parquet_file = dataset_file.replace('.csv', '.parquet')
 BIGQUERY_DATASET = os.environ.get("BIGQUERY_DATASET", 'trips_data_all')
@@ -60,14 +58,14 @@ default_args = {
     "owner": "airflow",
     # "start_date": days_ago(1),
     "start_date": datetime(2019, 1, 1),
-    "end_date": datetime(2021, 2, 28),
+    "end_date": datetime(2019, 12, 31),
     "depends_on_past": False,
     "retries": 1,
 }
 
 # NOTE: DAG declaration - using a Context Manager (an implicit way)
 with DAG(
-    dag_id="data_ingestion_gcs_dag",
+    dag_id="data_ingestion_gcs_fhv_dag",
     schedule_interval="@monthly",
     default_args=default_args,
     catchup=True,

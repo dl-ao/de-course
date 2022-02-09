@@ -1,8 +1,6 @@
 import os
 import logging
 
-from datetime import datetime
-
 from airflow import DAG
 from airflow.utils.dates import days_ago
 from airflow.operators.bash import BashOperator
@@ -16,11 +14,9 @@ import pyarrow.parquet as pq
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 BUCKET = os.environ.get("GCP_GCS_BUCKET")
 
-
-# for yellow taxi data, just substitute green with yellow and viceversa
-dataset_file = "green_tripdata_{{ execution_date.strftime(\'%Y-%m\') }}.csv"
-dataset_url = f"https://s3.amazonaws.com/nyc-tlc/trip+data/{dataset_file}"
-table_name = "green_tripdata_{{ execution_date.strftime(\'%Y-%m\') }}"
+dataset_file = "taxi+_zone_lookup.csv"
+dataset_url = f"https://s3.amazonaws.com/nyc-tlc/misc/{dataset_file}"
+table_name = "zones"
 path_to_local_home = os.environ.get("AIRFLOW_HOME", "/opt/airflow/")
 parquet_file = dataset_file.replace('.csv', '.parquet')
 BIGQUERY_DATASET = os.environ.get("BIGQUERY_DATASET", 'trips_data_all')
@@ -58,19 +54,17 @@ def upload_to_gcs(bucket, object_name, local_file):
 
 default_args = {
     "owner": "airflow",
-    # "start_date": days_ago(1),
-    "start_date": datetime(2019, 1, 1),
-    "end_date": datetime(2021, 2, 28),
+    "start_date": days_ago(1),
     "depends_on_past": False,
     "retries": 1,
 }
 
 # NOTE: DAG declaration - using a Context Manager (an implicit way)
 with DAG(
-    dag_id="data_ingestion_gcs_dag",
-    schedule_interval="@monthly",
+    dag_id="data_ingestion_gcs_zones_dag",
+    schedule_interval="@once",
     default_args=default_args,
-    catchup=True,
+    catchup=False,
     max_active_runs=2,
     tags=['dtc-de'],
 ) as dag:
