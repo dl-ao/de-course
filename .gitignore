@@ -15,6 +15,7 @@
 serving_dir
 *.csv
 fhvhv/
+zones/
 .ipynb_checkpoints/
 target/
 dbt_packages/
